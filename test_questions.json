@@ -1,0 +1,64 @@
+{
+  "test_questions": [
+    {
+      "question": "when retire?",
+      "description": "Very short, missing words"
+    },
+    {
+      "question": "how much money i get when old?",
+      "description": "Informal, grammatically poor"
+    },
+    {
+      "question": "can i work and get ss at same time??",
+      "description": "Typos, multiple question marks"
+    },
+    {
+      "question": "what happens if im hurt and cant work",
+      "description": "Missing punctuation, informal"
+    },
+    {
+      "question": "medicare vs social security whats the diff",
+      "description": "Abbreviated words, no punctuation"
+    },
+    {
+      "question": "how do i sign up for retirment benefits",
+      "description": "Spelling errors"
+    },
+    {
+      "question": "i moved how tell ss my new adress",
+      "description": "Poor grammar, spelling error"
+    },
+    {
+      "question": "when can i get full benifits not reduced ones",
+      "description": "Spelling error, run-on sentence"
+    },
+    {
+      "question": "whats my statement thing show me",
+      "description": "Very informal, unclear phrasing"
+    },
+    {
+      "question": "ssi vs social security disability what different",
+      "description": "Missing articles and punctuation"
+    },
+    {
+      "question": "how they calculate how much i get",
+      "description": "Missing subject, informal"
+    },
+    {
+      "question": "im 62 can i retire early but get less money",
+      "description": "Run-on, missing punctuation"
+    },
+    {
+      "question": "what if i keep working after 65",
+      "description": "Vague age reference"
+    },
+    {
+      "question": "health insurance for old people",
+      "description": "Very informal, not specific"
+    },
+    {
+      "question": "broken cant work disability help",
+      "description": "Fragmented sentence structure"
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ Similarity Comparison</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Social Security FAQ Bot - Similarity Comparison</h1>
+        <p>Ask a question and see how different similarity methods perform!</p>
+
+        <form method="POST" action="/">
+            <div class="input-group">
+                <input type="text" id="user_question" name="user_question" placeholder="e.g., When can I retire?" value="{{ user_question }}" required>
+                <button type="submit">Compare Methods</button>
+            </div>
+        </form>
+
+        <div class="test-questions-section">
+            <div class="test-controls">
+                <button type="button" id="prevTestBtn" class="test-btn">← Previous</button>
+                <button type="button" id="loadTestBtn" class="test-btn-main">Load Test Question</button>
+                <button type="button" id="nextTestBtn" class="test-btn">Next →</button>
+            </div>
+            <div id="testQuestionInfo" class="test-info hidden">
+                <span id="testCounter">Question 1 of 15</span>
+                <span id="testDescription">Test question description</span>
+            </div>
+        </div>
+
+        {% if user_question %}
+            <div class="user-question-section">
+                <h2>Your Question:</h2>
+                <p class="user-query">{{ user_question }}</p>
+            </div>
+
+            <div class="comparison-grid">
+                <!-- String-based Cosine Similarity (TF-IDF) -->
+                <div class="method-card">
+                    <h3>String-based Cosine Similarity (TF-IDF)</h3>
+                    <div class="score-badge">Score: {{ "%.3f"|format(results.string_cosine.score) }}</div>
+                    
+                    {% if results.string_cosine.question and results.string_cosine.question != 'No good match found' %}
+                        <div class="matched-question">
+                            <strong>Matched Question:</strong>
+                            <p>{{ results.string_cosine.question }}</p>
+                        </div>
+                        <div class="answer-box">
+                            <strong>Answer:</strong>
+                            <p>{{ results.string_cosine.answer }}</p>
+                        </div>
+                    {% else %}
+                        <div class="answer-box no-match">
+                            <p>{{ results.string_cosine.answer }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="method-info">
+                        <small>Uses TF-IDF vectors and cosine similarity. Good for exact keyword matches.</small>
+                    </div>
+                </div>
+
+                <!-- Embedding-based Cosine Similarity -->
+                <div class="method-card">
+                    <h3>Semantic Embedding Similarity</h3>
+                    <div class="score-badge">Score: {{ "%.3f"|format(results.embedding_cosine.score) }}</div>
+                    
+                    {% if results.embedding_cosine.question and results.embedding_cosine.question != 'No good match found' %}
+                        <div class="matched-question">
+                            <strong>Matched Question:</strong>
+                            <p>{{ results.embedding_cosine.question }}</p>
+                        </div>
+                        <div class="answer-box">
+                            <strong>Answer:</strong>
+                            <p>{{ results.embedding_cosine.answer }}</p>
+                        </div>
+                    {% else %}
+                        <div class="answer-box no-match">
+                            <p>{{ results.embedding_cosine.answer }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="method-info">
+                        <small>Uses pre-trained sentence transformers. Better for semantic meaning and paraphrases.</small>
+                    </div>
+                </div>
+
+                <!-- Simple String Similarity -->
+                <div class="method-card">
+                    <h3>Simple String Similarity</h3>
+                    <div class="score-badge">Score: {{ "%.3f"|format(results.simple_string.score) }}</div>
+                    
+                    {% if results.simple_string.question and results.simple_string.question != 'No good match found' %}
+                        <div class="matched-question">
+                            <strong>Matched Question:</strong>
+                            <p>{{ results.simple_string.question }}</p>
+                        </div>
+                        <div class="answer-box">
+                            <strong>Answer:</strong>
+                            <p>{{ results.simple_string.answer }}</p>
+                        </div>
+                    {% else %}
+                        <div class="answer-box no-match">
+                            <p>{{ results.simple_string.answer }}</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="method-info">
+                        <small>Uses character-level sequence matching. Good for typos and exact phrase matches.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="explanation-section">
+                <h3>Method Comparison:</h3>
+                <ul>
+                    <li><strong>String-based Cosine (TF-IDF):</strong> Fast, good for keyword matching, but misses semantic meaning</li>
+                    <li><strong>Semantic Embeddings:</strong> Slower to initialize but better understands meaning and context</li>
+                    <li><strong>Simple String:</strong> Basic character matching, good for detecting typos and exact phrases</li>
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        let currentTestIndex = 0;
+        let totalTestQuestions = 0;
+
+        // Load test question by index
+        async function loadTestQuestion(index) {
+            try {
+                const response = await fetch(`/get_test_question/${index}`);
+                const data = await response.json();
+                
+                if (data.question) {
+                    document.getElementById('user_question').value = data.question;
+                    document.getElementById('testCounter').textContent = `Question ${data.index + 1} of ${data.total}`;
+                    document.getElementById('testDescription').textContent = data.description;
+                    document.getElementById('testQuestionInfo').classList.remove('hidden');
+                    totalTestQuestions = data.total;
+                    currentTestIndex = data.index;
+                    
+                    // Update button states
+                    updateButtonStates();
+                } else {
+                    document.getElementById('testQuestionInfo').classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading test question:', error);
+            }
+        }
+
+        function updateButtonStates() {
+            document.getElementById('prevTestBtn').disabled = currentTestIndex <= 0;
+            document.getElementById('nextTestBtn').disabled = currentTestIndex >= totalTestQuestions - 1;
+        }
+
+        // Event listeners
+        document.getElementById('loadTestBtn').addEventListener('click', () => {
+            loadTestQuestion(currentTestIndex);
+        });
+
+        document.getElementById('nextTestBtn').addEventListener('click', () => {
+            if (currentTestIndex < totalTestQuestions - 1) {
+                currentTestIndex++;
+                loadTestQuestion(currentTestIndex);
+            }
+        });
+
+        document.getElementById('prevTestBtn').addEventListener('click', () => {
+            if (currentTestIndex > 0) {
+                currentTestIndex--;
+                loadTestQuestion(currentTestIndex);
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateButtonStates();
+        });
+    </script>
+</body>
+</html>
