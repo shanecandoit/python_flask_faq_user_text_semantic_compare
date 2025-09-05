@@ -1,11 +1,19 @@
 from flask import Flask, render_template, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 import numpy as np
 import difflib
 from difflib import SequenceMatcher
 import json
+
+# Try to import sentence transformers with error handling
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import sentence-transformers: {e}")
+    print("Falling back to TF-IDF similarity only.")
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 app = Flask(__name__)
 
@@ -61,15 +69,25 @@ faq_questions = [faq["question"] for faq in faqs]
 vectorizer = TfidfVectorizer().fit(faq_questions)
 faq_question_vectors = vectorizer.transform(faq_questions)
 
-# Initialize Sentence Transformer for semantic embeddings
-# This model is good for semantic similarity tasks
-print("Loading sentence transformer model...")
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Precompute embeddings for all FAQ questions at startup
-print("Computing embeddings for FAQ questions...")
-faq_embeddings = embedding_model.encode(faq_questions)
-print(f"Embeddings computed for {len(faq_questions)} questions.")
+# Initialize Sentence Transformer for semantic embeddings (if available)
+if SENTENCE_TRANSFORMERS_AVAILABLE:
+    try:
+        print("Loading sentence transformer model...")
+        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        
+        # Precompute embeddings for all FAQ questions at startup
+        print("Computing embeddings for FAQ questions...")
+        faq_embeddings = embedding_model.encode(faq_questions)
+        print(f"Embeddings computed for {len(faq_questions)} questions.")
+    except Exception as e:
+        print(f"Error loading sentence transformer: {e}")
+        SENTENCE_TRANSFORMERS_AVAILABLE = False
+        faq_embeddings = None
+        embedding_model = None
+else:
+    faq_embeddings = None
+    embedding_model = None
+    print("Sentence transformers not available - using TF-IDF similarity only.")
 
 # Load test questions for UI testing
 try:
@@ -90,13 +108,20 @@ def string_cosine_similarity(query, faq_questions):
 
 def embedding_cosine_similarity(query, faq_embeddings):
     """Calculate semantic similarity using sentence embeddings"""
-    # Encode the user query
-    query_embedding = embedding_model.encode([query])
+    if not SENTENCE_TRANSFORMERS_AVAILABLE or faq_embeddings is None:
+        return 0, 0.0  # Return default values when not available
     
-    # Calculate cosine similarity with all FAQ embeddings
-    similarities = cosine_similarity(query_embedding, faq_embeddings).flatten()
-    best_match_index = np.argmax(similarities)
-    return best_match_index, similarities[best_match_index]
+    try:
+        # Encode the user query
+        query_embedding = embedding_model.encode([query])
+        
+        # Calculate cosine similarity with all FAQ embeddings
+        similarities = cosine_similarity(query_embedding, faq_embeddings).flatten()
+        best_match_index = np.argmax(similarities)
+        return best_match_index, similarities[best_match_index]
+    except Exception as e:
+        print(f"Error in embedding similarity: {e}")
+        return 0, 0.0
 
 def simple_string_similarity(query, faq_questions):
     """Calculate simple string similarity using SequenceMatcher"""
@@ -136,18 +161,25 @@ def index():
                 }
 
             # Method 2: Embedding-based cosine similarity
-            embed_idx, embed_score = embedding_cosine_similarity(user_question, faq_embeddings)
-            if embed_score > 0.3:  # Higher threshold for embeddings (they're usually more accurate)
-                results['embedding_cosine'] = {
-                    'question': faqs[embed_idx]["question"],
-                    'answer': faqs[embed_idx]["answer"],
-                    'score': embed_score
-                }
+            if SENTENCE_TRANSFORMERS_AVAILABLE:
+                embed_idx, embed_score = embedding_cosine_similarity(user_question, faq_embeddings)
+                if embed_score > 0.3:  # Higher threshold for embeddings (they're usually more accurate)
+                    results['embedding_cosine'] = {
+                        'question': faqs[embed_idx]["question"],
+                        'answer': faqs[embed_idx]["answer"],
+                        'score': embed_score
+                    }
+                else:
+                    results['embedding_cosine'] = {
+                        'question': 'No good match found',
+                        'answer': 'Sorry, I couldn\'t find a close match using semantic similarity.',
+                        'score': embed_score
+                    }
             else:
                 results['embedding_cosine'] = {
-                    'question': 'No good match found',
-                    'answer': 'Sorry, I couldn\'t find a close match using semantic similarity.',
-                    'score': embed_score
+                    'question': 'Feature unavailable',
+                    'answer': 'Semantic embeddings are not available. Please check sentence-transformers installation.',
+                    'score': 0.0
                 }
 
             # Method 3: Simple string similarity
@@ -197,13 +229,15 @@ def get_test_question(index):
 if __name__ == '__main__':
     import os
     
-    # Get port from environment variable or default to 5000
+    # Render and other platforms provide PORT via environment variable
+    # Default to 5000 for local development
     port = int(os.environ.get('PORT', 5000))
     
-    # Get host from environment variable or default to localhost
-    host = os.environ.get('HOST', '0.0.0.0')
+    # Always bind to 0.0.0.0 for containerized environments
+    host = '0.0.0.0'
     
     # Check if we're in production
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
     
+    print(f"Starting app on {host}:{port}")
     app.run(host=host, port=port, debug=debug_mode)

@@ -38,10 +38,14 @@ railway up
 ```
 
 ### 2. Render (Free tier)
+
 1. Push to GitHub
 2. Connect repo at [render.com](https://render.com)
 3. Select "Web Service" → "Docker"
-4. Set port to 5000
+4. Leave Build Command and Start Command empty
+5. Enable Auto-Deploy
+
+**Note**: Render automatically provides the `PORT` environment variable. No manual port configuration needed!
 
 ### 3. Fly.io (Free tier)
 ```bash
